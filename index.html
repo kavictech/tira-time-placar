@@ -40,6 +40,17 @@
   .ic { display: inline-block; width: 10px; height: 14px; border-radius: 2px; vertical-align: -2px; margin: 0 6px; }
   .empty, .error { text-align: center; color: var(--muted); padding: 30px 10px; }
   .foot { text-align: center; margin-top: 22px; color: var(--muted); font-size: 12px; }
+  .entry h1 { font-size: 20px; margin: 0 0 6px; }
+  .entry p { color: var(--muted); font-size: 14px; margin: 0 0 16px; }
+  .entry input { width: 100%; font: 800 28px 'Barlow Condensed', sans-serif; font-style: italic; letter-spacing: 6px;
+                 text-align: center; text-transform: uppercase; padding: 12px; border-radius: 12px;
+                 border: 1px solid var(--line); background: var(--bg); color: var(--text); }
+  .entry input:focus { outline: 2px solid var(--orange); }
+  .btn { display: block; width: 100%; margin-top: 10px; padding: 13px; border-radius: 12px; border: 0; font: 800 15px 'Plus Jakarta Sans', sans-serif; cursor: pointer; }
+  .btn.primary { background: var(--orange); color: var(--bg); }
+  .btn.ghost { background: transparent; color: var(--text); border: 1px solid var(--line); }
+  #reader { margin-top: 12px; border-radius: 12px; overflow: hidden; }
+  .switch { display: inline-block; margin-top: 8px; color: var(--muted); font-size: 13px; }
   a.app { display: inline-block; margin-top: 10px; background: var(--orange); color: var(--bg); font-weight: 800; text-decoration: none;
           padding: 12px 18px; border-radius: 12px; }
 </style>
@@ -50,12 +61,58 @@
   <div id="app"><div class="card empty">Carregando o placar…</div></div>
   <div class="foot">Atualiza sozinho a cada 10 segundos.<br><a class="app" id="open-app" href="#">Abrir no app Tira-Time</a></div>
 </main>
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script>
   // Preenchido por tool/build_placar.py (URL do projeto e chave publica "publishable").
   const SUPABASE_URL = 'https://elhdfbqaqnwvadctigyh.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_aIF6CfzjU2FVQ_ySFzQ_Lw_rIQKv5PV';
   const code = (new URLSearchParams(location.search).get('c') || '').toUpperCase().replace(/[^A-Z2-9]/g, '').slice(0, 8);
   document.getElementById('open-app').href = 'pelada://app/ao-vivo/' + code;
+  if (!code) document.querySelector('.foot').style.display = 'none';
+
+  // Codigo digitado ou lido no QR (aceita o codigo puro ou o link com ?c=).
+  function codeFrom(text) {
+    const t = String(text || '').trim();
+    const m = t.match(/[?&]c=([A-Za-z2-9]{8})/) || t.match(/ao-vivo\/([A-Za-z2-9]{8})/);
+    const raw = (m ? m[1] : t).toUpperCase().replace(/[^A-Z2-9]/g, '');
+    return raw.length === 8 ? raw : null;
+  }
+  function openCode(c) { location.search = '?c=' + c; }
+
+  let scanner = null;
+  function renderEntry(msg) {
+    document.getElementById('app').innerHTML = `
+      <div class="card entry">
+        <h1>Acompanhar um jogo</h1>
+        <p>Digite o código do jogo (aparece no app, no painel da partida) ou leia o QR Code.</p>
+        <form id="f"><input id="code" maxlength="8" autocomplete="off" autocapitalize="characters" placeholder="ABCD2345" aria-label="Código do jogo">
+        <button class="btn primary" type="submit">Acompanhar ao vivo</button></form>
+        <button class="btn ghost" id="scan" type="button">📷 Ler QR Code</button>
+        <div id="reader"></div>
+        ${msg ? `<p style="color:var(--live);margin-top:12px">${esc(msg)}</p>` : ''}
+      </div>`;
+    document.getElementById('f').onsubmit = (ev) => {
+      ev.preventDefault();
+      const c = codeFrom(document.getElementById('code').value);
+      if (c) openCode(c); else renderEntry('O código tem 8 letras e números. Confira e tente de novo.');
+    };
+    document.getElementById('scan').onclick = startScan;
+  }
+  async function startScan() {
+    if (typeof Html5Qrcode === 'undefined') { renderEntry('Leitor de QR indisponível. Digite o código.'); return; }
+    try {
+      scanner = new Html5Qrcode('reader');
+      await scanner.start({ facingMode: 'environment' }, { fps: 10, qrbox: 230 }, async (text) => {
+        const c = codeFrom(text);
+        if (!c) return;
+        try { await scanner.stop(); } catch (e) {}
+        openCode(c);
+      });
+      document.getElementById('scan').textContent = 'Aponte a câmera para o QR Code';
+    } catch (e) {
+      renderEntry('Não foi possível abrir a câmera. Libere o acesso ou digite o código.');
+    }
+  }
 
   let data = null, offsetMs = 0;
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -67,8 +124,26 @@
     extra_break: 'Intervalo', extra_first: '1º tempo da prorrogação', extra_halftime: 'Intervalo', extra_second: '2º tempo da prorrogação',
     penalties: 'Pênaltis', ended: 'Encerrado' };
 
+  function peladaLabel() {
+    if (data.clock_period === 'extra') return 'Prorrogação';
+    if (data.clock_period === 'regular') return (data.halves || 1) > 1 ? `${data.clock_half || 1}º tempo` : 'Em jogo';
+    return 'Ao vivo';
+  }
+
   function clockText() {
-    if (!data || !data.clock_started_at) return '';
+    if (!data) return '';
+    if (data.kind === 'pelada') {
+      if (!['regular', 'extra'].includes(data.clock_period)) return '';
+      const per = data.game_minutes || 10;
+      const base = data.clock_period === 'extra' ? per * (data.halves || 1) : per * ((data.clock_half || 1) - 1);
+      const secs = data.clock_paused_seconds != null
+        ? data.clock_paused_seconds
+        : (data.clock_started_at ? Math.max(0, (Date.now() + offsetMs - new Date(data.clock_started_at).getTime()) / 1000) : 0);
+      const total = base * 60 + secs;
+      const t = String(Math.floor(total / 60)).padStart(2, '0') + ':' + String(Math.floor(total % 60)).padStart(2, '0');
+      return data.clock_paused_seconds != null ? t + ' (pausado)' : t;
+    }
+    if (!data.clock_started_at) return '';
     const running = { first_half: 0, second_half: 45, extra_first: 90, extra_second: 105 };
     if (!(data.clock_period in running)) return '';
     const elapsed = Math.max(0, (Date.now() + offsetMs - new Date(data.clock_started_at).getTime()) / 1000);
@@ -87,8 +162,8 @@
 
   function render() {
     const el = document.getElementById('app');
-    if (!code) { el.innerHTML = '<div class="card error">Link de placar inválido.</div>'; return; }
-    if (!data) { el.innerHTML = '<div class="card error">Jogo não encontrado. Confira o link.</div>'; return; }
+    if (!code) { renderEntry(); return; }
+    if (!data) { renderEntry('Jogo não encontrado para o código ' + code + '. Confira e tente de novo.'); return; }
     const live = data.status === 'in_progress';
     const ended = data.status === 'finished';
     const when = data.scheduled_at ? new Date(data.scheduled_at).toLocaleString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
@@ -96,7 +171,7 @@
     const pens = data.home_pens != null && data.away_pens != null ? `<div class="pens">Pênaltis: ${data.home_pens} x ${data.away_pens}</div>` : '';
     const cancelled = data.status === 'cancelled';
     const status = live
-      ? `<div class="status"><span class="dot"></span><span>${esc(PERIODS[data.clock_period] || 'Ao vivo')}</span><span class="clock" id="clock">${clockText()}</span></div>`
+      ? `<div class="status"><span class="dot"></span><span>${esc(data.kind === 'pelada' ? peladaLabel() : (PERIODS[data.clock_period] || 'Ao vivo'))}</span><span class="clock" id="clock">${clockText()}</span></div>`
       : `<div class="status" style="color:var(--muted)">${cancelled ? 'Partida cancelada' : ended ? 'Fim de jogo' : 'Ainda não começou'}</div>`;
     const many = Array.isArray(data.teams) && data.teams.length > 2;
     const icon = (t) => t === 'goal' ? '⚽' : t === 'own_goal' ? '⚽ (contra)' : t === 'yellow'
@@ -125,7 +200,8 @@
         </div>`}
         ${pens}${status}
       </div>
-      <h2>Lances</h2>
+      <div style="text-align:center"><a class="switch" href="./">Acompanhar outro jogo</a></div>
+      <h2>Gols e cartões</h2>
       <div class="card">${evs || '<div class="empty" style="padding:8px">Nenhum gol ou cartão ainda.</div>'}</div>`;
   }
 
@@ -147,7 +223,7 @@
   }
 
   load();
-  setInterval(load, 10000);
+  setInterval(() => { if (code) load(); }, 10000);
   setInterval(() => { const c = document.getElementById('clock'); if (c) c.textContent = clockText(); }, 1000);
 </script>
 </body>
