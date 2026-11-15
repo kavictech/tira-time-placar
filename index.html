@@ -94,23 +94,35 @@
     const when = data.scheduled_at ? new Date(data.scheduled_at).toLocaleString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
     const meta = [data.championship, data.round ? 'Rodada ' + data.round : null, when, data.venue].filter(Boolean).map(esc).join(' · ');
     const pens = data.home_pens != null && data.away_pens != null ? `<div class="pens">Pênaltis: ${data.home_pens} x ${data.away_pens}</div>` : '';
+    const cancelled = data.status === 'cancelled';
     const status = live
       ? `<div class="status"><span class="dot"></span><span>${esc(PERIODS[data.clock_period] || 'Ao vivo')}</span><span class="clock" id="clock">${clockText()}</span></div>`
-      : `<div class="status" style="color:var(--muted)">${ended ? 'Fim de jogo' : 'Ainda não começou'}</div>`;
+      : `<div class="status" style="color:var(--muted)">${cancelled ? 'Partida cancelada' : ended ? 'Fim de jogo' : 'Ainda não começou'}</div>`;
+    const many = Array.isArray(data.teams) && data.teams.length > 2;
     const icon = (t) => t === 'goal' ? '⚽' : t === 'own_goal' ? '⚽ (contra)' : t === 'yellow'
       ? '<span class="ic" style="background:var(--yellow)"></span>' : '<span class="ic" style="background:var(--live)"></span>';
+    const teamName = (n) => (data.teams && data.teams[n - 1]) ? data.teams[n - 1].name : '';
     const evs = (data.events || []).map((e) => {
+      if (many) {
+        return `<div class="ev" style="grid-template-columns:44px 1fr"><div class="min">${e.minute != null ? esc(e.minute) + "'" : ''}</div><div>${icon(e.type)} ${esc(e.player || '')} <span style="color:var(--muted)">· ${esc(teamName(e.team))}</span></div></div>`;
+      }
       const txt = `${icon(e.type)} ${esc(e.player || '')}`;
       return `<div class="ev"><div class="home">${e.side === 'home' ? txt : ''}</div><div class="min">${e.minute != null ? esc(e.minute) + "'" : ''}</div><div class="away">${e.side === 'away' ? txt : ''}</div></div>`;
     }).join('');
     el.innerHTML = `
       <div class="card">
         <div class="meta">${meta}</div>
+        ${many ? data.teams.map((t) => `
+          <div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--line)">
+            <div class="crest" style="width:40px;height:40px;margin:0;font-size:14px;background:${safeColor(t.color)};color:${textOn(safeColor(t.color))}">${esc(t.short_code)}</div>
+            <div class="tname" style="flex:1">${esc(t.name)}</div>
+            <div class="score" style="font-size:40px">${esc(t.score)}</div>
+          </div>`).join('') : `
         <div class="teams">
           <div class="team">${crest(data.home)}<div class="tname">${esc(data.home ? data.home.name : 'A definir')}</div></div>
           <div class="score">${esc(data.home_score)} x ${esc(data.away_score)}</div>
           <div class="team">${crest(data.away)}<div class="tname">${esc(data.away ? data.away.name : 'A definir')}</div></div>
-        </div>
+        </div>`}
         ${pens}${status}
       </div>
       <h2>Lances</h2>
