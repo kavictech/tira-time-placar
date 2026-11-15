@@ -415,7 +415,7 @@
   function render() {
     const el = document.getElementById('app');
     if (!code && arenaSlug) { renderIdle(); return; }
-    if (!code) { renderEntry(); return; }
+    if (!code) { if (!document.getElementById('f')) renderEntry(); return; }
     if (!data) { renderEntry('Jogo não encontrado para o código ' + code + '. Confira e tente de novo.'); return; }
     const live = data.status === 'in_progress';
     const ended = data.status === 'finished';
@@ -505,6 +505,12 @@
     if (!code) return render();
     try {
       data = await rpc('live_match', { p_code: code });
+      if (!data && !arenaSlug) {
+        const bad = code;
+        code = '';
+        renderEntry('Jogo não encontrado para o código ' + bad + '. Confira e tente de novo.');
+        return;
+      }
       if (data && data.server_now) offsetMs = new Date(data.server_now).getTime() - Date.now();
       render();
     } catch (e) {
