@@ -134,41 +134,58 @@
 
   function peladaLabel() {
     if (data.clock_period === 'extra') return 'Prorrogação';
+    if (data.clock_period === 'interval') return 'Intervalo';
     if (data.clock_period === 'regular') return (data.halves || 1) > 1 ? `${data.clock_half || 1}º tempo` : 'Em jogo';
     return 'Ao vivo';
   }
 
-  // Tempo do periodo atual: { text, stoppage }. Passou do tempo normal = acrescimos.
+  // Tempo do periodo atual: { text, stoppage, phase }. Passou do tempo normal = acrescimos;
+  // acabaram os acrescimos dados = intervalo (ou fim do jogo no ultimo tempo).
   function clockInfo() {
-    if (!data) return { text: '', stoppage: false };
-    let base, secs, paused = false;
+    const none = { text: '', stoppage: false, phase: null };
+    if (!data) return none;
+    const mmss = (v) => String(Math.floor(v / 60)).padStart(2, '0') + ':' + String(Math.floor(v % 60)).padStart(2, '0');
+    const since = (iso) => Math.max(0, (Date.now() + offsetMs - new Date(iso).getTime()) / 1000);
+    // Intervalo: conta desde o fim do tempo
+    if (['interval', 'halftime', 'extra_halftime', 'extra_break'].includes(data.clock_period)) {
+      return { text: data.clock_started_at ? mmss(since(data.clock_started_at)) : '', stoppage: false, phase: 'interval' };
+    }
+    let base, secs, paused = false, lastHalf;
     if (data.kind === 'pelada') {
-      if (!['regular', 'extra'].includes(data.clock_period)) return { text: '', stoppage: false };
+      if (!['regular', 'extra'].includes(data.clock_period)) return none;
       const per = data.game_minutes || 10;
       base = data.clock_period === 'extra' ? per * (data.halves || 1) : per * ((data.clock_half || 1) - 1);
       paused = data.clock_paused_seconds != null;
-      secs = paused ? data.clock_paused_seconds
-        : (data.clock_started_at ? Math.max(0, (Date.now() + offsetMs - new Date(data.clock_started_at).getTime()) / 1000) : 0);
+      secs = paused ? data.clock_paused_seconds : (data.clock_started_at ? since(data.clock_started_at) : 0);
+      lastHalf = data.clock_period === 'extra' || (data.clock_half || 1) >= (data.halves || 1);
     } else {
       const running = { first_half: 0, second_half: 45, extra_first: 90, extra_second: 105 };
-      if (!data.clock_started_at || !(data.clock_period in running)) return { text: '', stoppage: false };
+      if (!data.clock_started_at || !(data.clock_period in running)) return none;
       base = running[data.clock_period];
-      secs = Math.max(0, (Date.now() + offsetMs - new Date(data.clock_started_at).getTime()) / 1000);
+      secs = since(data.clock_started_at);
+      lastHalf = ['second_half', 'extra_second'].includes(data.clock_period);
     }
     const len = (data.period_minutes || (data.kind === 'pelada' ? data.game_minutes : 45) || 45) * 60;
-    const mmss = (v) => String(Math.floor(v / 60)).padStart(2, '0') + ':' + String(Math.floor(v % 60)).padStart(2, '0');
-    if (secs >= len) {
-      // Tempo normal esgotado: mostra o fim do periodo + quanto ja rolou de acrescimo
-      const extra = secs - len;
-      const given = data.stoppage_minutes > 0 ? ` de +${data.stoppage_minutes}'` : '';
-      return { text: mmss(base * 60 + len) + ' +' + mmss(extra) + given + (paused ? ' (pausado)' : ''), stoppage: true };
+    const given = (data.stoppage_minutes || 0) * 60;
+    if (!paused && given > 0 && secs >= len + given) {
+      // Acrescimos dados acabaram: o servidor encerra o tempo; o painel ja mostra na hora.
+      return lastHalf ? { text: '', stoppage: false, phase: 'ended' }
+                      : { text: mmss(secs - len - given), stoppage: false, phase: 'interval' };
     }
-    return { text: mmss(base * 60 + secs) + (paused ? ' (pausado)' : ''), stoppage: false };
+    if (secs >= len) {
+      const extra = secs - len;
+      const g = given > 0 ? ` de +${data.stoppage_minutes}'` : '';
+      return { text: mmss(base * 60 + len) + ' +' + mmss(extra) + g + (paused ? ' (pausado)' : ''), stoppage: true, phase: null };
+    }
+    return { text: mmss(base * 60 + secs) + (paused ? ' (pausado)' : ''), stoppage: false, phase: null };
   }
   function clockText() { return clockInfo().text; }
   function periodLabel() {
+    const info = clockInfo();
+    if (info.phase === 'interval') return 'Intervalo';
+    if (info.phase === 'ended') return 'Fim do tempo de jogo';
     const name = data.kind === 'pelada' ? peladaLabel() : (PERIODS[data.clock_period] || 'Ao vivo');
-    return clockInfo().stoppage ? name + ' · ACRÉSCIMOS' : name;
+    return info.stoppage ? name + ' · ACRÉSCIMOS' : name;
   }
 
   function crest(t) {
