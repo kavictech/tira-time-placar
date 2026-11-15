@@ -98,6 +98,12 @@
   .partner em { font-style: normal; font-size: 11px; color: var(--muted); }
   .adhere { border-style: dashed; color: var(--muted); }
 
+  .coupon { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; padding: 6px 10px; border-radius: 10px;
+            border: 1px dashed var(--orange); color: var(--orange); font-weight: 800; letter-spacing: 1px; cursor: pointer; background: transparent;
+            font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13px; }
+  .mvp { margin-top: 14px; display: flex; align-items: center; gap: 12px; }
+  .mvp .ava { width: 54px; height: 54px; font-size: 16px; border-color: var(--orange); }
+  .mvp small { color: var(--orange); font-weight: 800; letter-spacing: 1px; font-size: 11px; text-transform: uppercase; }
   .empty, .error { text-align: center; color: var(--muted); padding: 30px 10px; }
   .foot { text-align: center; margin-top: 22px; color: var(--muted); font-size: 12px; }
   .entry h1 { font-size: 22px; margin: 0 0 6px; }
@@ -193,7 +199,10 @@
     }
   }
 
-  let data = null, offsetMs = 0, sponsors = null;
+  // Contato comercial do Tira-Time para anunciantes (WhatsApp).
+  const ADS_WA = 'https://wa.me/5584981471023?text=' + encodeURIComponent('Olá! Quero anunciar no placar ao vivo do Tira-Time. Quais são os planos?');
+  if (new URLSearchParams(location.search).get('tv') === '1') document.body.classList.add('tv');
+  let data = null, offsetMs = 0, sponsors = null, topIdx = 0;
   const seen = new Set();
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const safeColor = (c) => /^#[0-9a-fA-F]{6}$/.test(c || '') ? c : '#0561AF';
@@ -297,7 +306,8 @@
   }
   const spLogo = (s) => safeUrl(s.logo_url) ? `<img class="sp-logo" src="${esc(s.logo_url)}" alt="${esc(s.name)}">` : '';
   function sponsorTop() {
-    const s = sponsors && sponsors.topo && sponsors.topo[0];
+    const list = (sponsors && sponsors.topo) || [];
+    const s = list.length ? list[topIdx % list.length] : null;
     if (!s) return '';
     return spLink(s, 'topo', 'sp-top', `<small>Placar oferecido por</small>${spLogo(s)}<span class="sp-name">${esc(s.name)}</span>`);
   }
@@ -308,17 +318,45 @@
       `${spLogo(s) || '<span style="font-size:40px">⚽</span>'}<div><small>Intervalo oferecido por</small>
        <div class="sp-name" style="font-size:20px">${esc(s.name)}</div>
        ${s.tagline ? `<div style="color:var(--muted);margin-top:2px">${esc(s.tagline)}</div>` : ''}
+       ${coupon(s, 'intervalo')}
        ${safeUrl(s.link_url) ? '<span class="cta">Ver ofertas</span>' : ''}</div>`);
+  }
+  function coupon(s, placement) {
+    if (!s.coupon_code) return '';
+    return `<div><button class="coupon" type="button" data-coupon="${esc(s.coupon_code)}" data-cid="${esc(s.id)}" data-cpl="${placement}">🏷️ Cupom ${esc(s.coupon_code)} · copiar</button></div>`;
+  }
+  // Craque da partida (no fim do jogo), patrocinado
+  function mvpBlock() {
+    const m = (data && data.mvp) || [];
+    if (!m.length || data.status !== 'finished') return '';
+    const s = sponsors && sponsors.craque && sponsors.craque[0];
+    const initials = (n) => String(n || '?').trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
+    const p = m[0];
+    const ava = safeUrl(p.avatar_url) ? `<span class="ava" style="background-image:url('${esc(p.avatar_url)}')"></span>` : `<span class="ava">${esc(initials(p.name))}</span>`;
+    if (s) viewOnce(s, 'craque');
+    return `<div class="card mvp">${ava}<div><small>Craque da partida${s ? ' · oferecido por ' + esc(s.name) : ''}</small>
+      <div class="sp-name" style="font-size:20px">${esc(m.map((x) => x.name).join(' e '))}</div>
+      <div style="color:var(--muted);font-size:13px">${esc(p.votes)} voto(s)${s && s.prize_text ? ' · prêmio: ' + esc(s.prize_text) : ''}</div>
+      ${s ? coupon(s, 'craque') : ''}</div></div>`;
   }
   function sponsorFooter() {
     const list = (sponsors && sponsors.rodape) || [];
     const cats = { loja_esporte: 'Loja de esportes', moda: 'Moda', society: 'Society', quadra: 'Quadra', alimentacao: 'Alimentação', saude: 'Saúde' };
     const items = list.map((s) => spLink(s, 'rodape', 'partner',
-      `${safeUrl(s.logo_url) ? `<img src="${esc(s.logo_url)}" alt="">` : ''}<span>${esc(s.name)}</span><em>${esc(s.tagline || cats[s.category] || '')}</em>`)).join('');
-    const ad = `<div class="partner adhere"><span>Sua marca aqui</span><em>Anuncie no placar ao vivo dos jogos da sua cidade</em></div>`;
-    return `<h2>Parceiros</h2><div class="partners">${items}${list.length < 3 ? ad : ''}</div>`;
+      `${safeUrl(s.logo_url) ? `<img src="${esc(s.logo_url)}" alt="">` : ''}<span>${esc(s.name)}</span><em>${esc(s.tagline || cats[s.category] || '')}</em>${s.coupon_code ? `<em style="color:var(--orange);font-weight:800">Cupom ${esc(s.coupon_code)}</em>` : ''}`)).join('');
+    const ad = `<a class="partner adhere" href="${ADS_WA}" target="_blank" rel="noopener"><span>📣 Sua marca aqui</span><em>Anuncie no placar ao vivo dos jogos da sua cidade</em></a>`;
+    return `<h2>Parceiros</h2><div class="partners">${items}${list.length < 3 ? ad : ''}</div>
+      <div style="text-align:center;margin-top:10px"><a class="switch" href="${ADS_WA}" target="_blank" rel="noopener">Quer anunciar aqui? Fale com o Tira-Time</a></div>`;
   }
   document.addEventListener('click', (ev) => {
+    const c = ev.target.closest && ev.target.closest('[data-coupon]');
+    if (c) {
+      ev.preventDefault(); ev.stopPropagation();
+      try { navigator.clipboard.writeText(c.dataset.coupon); } catch (e) {}
+      track(c.dataset.cid, c.dataset.cpl, 'coupon');
+      c.textContent = '✔ Cupom ' + c.dataset.coupon + ' copiado';
+      return;
+    }
     const a = ev.target.closest && ev.target.closest('a[data-sp]');
     if (a) track(a.dataset.sp, a.dataset.pl, 'click');
   });
@@ -388,6 +426,7 @@
             <div id="halfend" class="halfend" style="display:${inBreak() && live ? 'block' : 'none'}">FIM DO ${esc(halfDone())}º TEMPO</div>
           </div>
           <div id="spbreak">${live ? sponsorBreak() : ''}</div>
+          ${mvpBlock()}
           <div style="text-align:center"><a class="switch" href="./">Acompanhar outro jogo</a></div>
         </div>
         <div>
@@ -423,6 +462,10 @@
   loadSponsors().then(load);
   setInterval(() => { if (code) load(); }, 10000);
   setInterval(loadSponsors, 120000);
+  setInterval(() => {
+    const list = (sponsors && sponsors.topo) || [];
+    if (list.length > 1 && data) { topIdx++; render(); }
+  }, 15000);
   let wasBreak = null;
   setInterval(() => {
     const c = document.getElementById('clock');
