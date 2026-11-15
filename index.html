@@ -44,6 +44,8 @@
   .tb { width: 18px; height: 18px; border-radius: 5px; flex: none; display: grid; place-items: center; font-size: 9px;
         font-weight: 800; background: center/cover no-repeat; }
   .pname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .halfend { text-align: center; margin-top: 12px; padding: 8px; border-radius: 10px; background: rgba(246,132,20,.15);
+             color: var(--orange); font-weight: 800; letter-spacing: 1px; font-size: 13px; }
   .stoppage { color: var(--live); font-weight: 800; animation: pulse 1.2s infinite; }
   .ic { display: inline-block; width: 10px; height: 14px; border-radius: 2px; vertical-align: -2px; margin: 0 6px; }
   .empty, .error { text-align: center; color: var(--muted); padding: 30px 10px; }
@@ -147,8 +149,13 @@
     const mmss = (v) => String(Math.floor(v / 60)).padStart(2, '0') + ':' + String(Math.floor(v % 60)).padStart(2, '0');
     const since = (iso) => Math.max(0, (Date.now() + offsetMs - new Date(iso).getTime()) / 1000);
     // Intervalo: conta desde o fim do tempo
+    const intervalInfo = (elapsed) => {
+      const left = (data.interval_minutes || 10) * 60 - elapsed;
+      return left > 0 ? { text: 'faltam ' + mmss(left), stoppage: false, phase: 'interval' }
+                      : { text: '', stoppage: false, phase: 'interval_over' };
+    };
     if (['interval', 'halftime', 'extra_halftime', 'extra_break'].includes(data.clock_period)) {
-      return { text: data.clock_started_at ? mmss(since(data.clock_started_at)) : '', stoppage: false, phase: 'interval' };
+      return data.clock_started_at ? intervalInfo(since(data.clock_started_at)) : { text: '', stoppage: false, phase: 'interval' };
     }
     let base, secs, paused = false, lastHalf;
     if (data.kind === 'pelada') {
@@ -169,8 +176,7 @@
     const given = (data.stoppage_minutes || 0) * 60;
     if (!paused && given > 0 && secs >= len + given) {
       // Acrescimos dados acabaram: o servidor encerra o tempo; o painel ja mostra na hora.
-      return lastHalf ? { text: '', stoppage: false, phase: 'ended' }
-                      : { text: mmss(secs - len - given), stoppage: false, phase: 'interval' };
+      return lastHalf ? { text: '', stoppage: false, phase: 'ended' } : intervalInfo(secs - len - given);
     }
     if (secs >= len) {
       const extra = secs - len;
@@ -180,9 +186,15 @@
     return { text: mmss(base * 60 + secs) + (paused ? ' (pausado)' : ''), stoppage: false, phase: null };
   }
   function clockText() { return clockInfo().text; }
+  // Qual tempo acabou (para a faixa do intervalo)
+  function halfDone() {
+    if (data.kind === 'pelada') return data.clock_period === 'interval' ? (data.clock_half || 1) : (data.clock_half || 1);
+    return data.clock_period === 'extra_halftime' ? 3 : 1;
+  }
   function periodLabel() {
     const info = clockInfo();
     if (info.phase === 'interval') return 'Intervalo';
+    if (info.phase === 'interval_over') return 'Fim do intervalo · aguardando o próximo tempo';
     if (info.phase === 'ended') return 'Fim do tempo de jogo';
     const name = data.kind === 'pelada' ? peladaLabel() : (PERIODS[data.clock_period] || 'Ao vivo');
     return info.stoppage ? name + ' · ACRÉSCIMOS' : name;
@@ -251,6 +263,7 @@
           <div class="team">${crest(data.away)}<div class="tname">${esc(data.away ? data.away.name : 'A definir')}</div></div>
         </div>`}
         ${pens}${status}
+        <div id="halfend" class="halfend" style="display:${['interval', 'interval_over'].includes(clockInfo().phase) && live ? 'block' : 'none'}">FIM DO ${esc(halfDone())}º TEMPO</div>
       </div>
       <div style="text-align:center"><a class="switch" href="./">Acompanhar outro jogo</a></div>
       <h2>Gols e cartões</h2>
@@ -280,6 +293,8 @@
     const c = document.getElementById('clock'); if (c) c.textContent = clockText();
     const l = document.getElementById('plabel');
     if (l && data) { l.textContent = periodLabel(); l.className = clockInfo().stoppage ? 'stoppage' : ''; }
+    const h = document.getElementById('halfend');
+    if (h && data) h.style.display = ['interval', 'interval_over'].includes(clockInfo().phase) ? 'block' : 'none';
   }, 1000);
 </script>
 </body>
