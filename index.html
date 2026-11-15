@@ -5,69 +5,132 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Placar ao vivo · Tira-Time</title>
 <meta name="description" content="Placar ao vivo do jogo no Tira-Time">
+<meta name="theme-color" content="#051F38">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@1,700;1,800&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #051F38; --surface: #072B4D; --line: #17497A; --text: #F7FCFE; --muted: #C7DAE5;
-    --orange: #F68414; --sky: #0388D7; --live: #FF6B6B; --yellow: #F5C518;
+    --bg: #051F38; --surface: #072B4D; --surface2: #0B3864; --line: #17497A; --text: #F7FCFE; --muted: #C7DAE5;
+    --orange: #F68414; --sky: #0388D7; --royal: #0561AF; --live: #FF6B6B; --yellow: #F5C518;
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
-  main { max-width: 560px; margin: 0 auto; padding: 20px 16px 40px; }
-  header { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
-  .brand { font-family: 'Barlow Condensed', sans-serif; font-style: italic; font-weight: 800; font-size: 24px; letter-spacing: .5px; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
+  body { background: radial-gradient(1200px 500px at 50% -120px, #0B3F6E 0%, var(--bg) 60%) fixed; min-height: 100vh; }
+  main { max-width: 760px; margin: 0 auto; padding: 16px 16px 40px; }
+  header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .brand { font-family: 'Barlow Condensed', sans-serif; font-style: italic; font-weight: 800; font-size: 26px; letter-spacing: .5px; }
   .brand b { color: var(--orange); }
-  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
-  .meta { color: var(--muted); font-size: 13px; text-align: center; margin-bottom: 14px; }
-  .teams { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; }
+  .tag { color: var(--muted); font-size: 13px; }
+  .spacer { flex: 1; }
+  .icon-btn { background: transparent; border: 1px solid var(--line); color: var(--text); border-radius: 10px; padding: 7px 11px;
+              font: 700 13px 'Plus Jakarta Sans', sans-serif; cursor: pointer; text-decoration: none; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 18px; }
+
+  /* Patrocinio do topo */
+  .sp-top { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 12px; padding: 8px 12px;
+            border-radius: 14px; background: rgba(247,252,254,.05); border: 1px solid var(--line); text-decoration: none; color: var(--text); }
+  .sp-top small { color: var(--muted); font-size: 11px; letter-spacing: 1px; text-transform: uppercase; }
+  .sp-logo { height: 30px; max-width: 120px; object-fit: contain; border-radius: 6px; background: #fff; padding: 2px 6px; }
+  .sp-name { font-weight: 800; font-size: 15px; }
+
+  /* Placar */
+  .board { position: relative; overflow: hidden; padding: 22px 16px 20px;
+           background: linear-gradient(160deg, #0B3F6E 0%, var(--surface) 55%, #051F38 100%); }
+  .board::after { content: ''; position: absolute; inset: 0; pointer-events: none;
+                  background: radial-gradient(400px 180px at 50% 0, rgba(246,132,20,.16), transparent 70%); }
+  .meta { color: var(--muted); font-size: 13px; text-align: center; margin-bottom: 16px; position: relative; z-index: 1; }
+  .teams { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 6px; position: relative; z-index: 1; }
   .team { text-align: center; min-width: 0; }
-  .crest { width: 64px; height: 64px; border-radius: 18px; margin: 0 auto 8px; display: grid; place-items: center;
-           font-weight: 800; font-size: 18px; overflow: hidden; background-size: cover; background-position: center; }
-  .tname { font-weight: 700; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .score { font-family: 'Barlow Condensed', sans-serif; font-style: italic; font-weight: 800; font-size: 64px; line-height: 1;
-           padding: 0 6px; white-space: nowrap; }
-  .pens { color: var(--muted); font-size: 13px; text-align: center; margin-top: 4px; }
-  .status { display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 14px; font-weight: 700; font-size: 14px; }
+  .crest { width: clamp(64px, 18vw, 104px); height: clamp(64px, 18vw, 104px); border-radius: 26px; margin: 0 auto 10px;
+           display: grid; place-items: center; font-weight: 800; font-size: clamp(18px, 5vw, 28px); overflow: hidden;
+           background-size: cover; background-position: center; box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+  .tname { font-weight: 800; font-size: clamp(14px, 3.6vw, 20px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .score { font-family: 'Barlow Condensed', sans-serif; font-style: italic; font-weight: 800; line-height: .9;
+           font-size: clamp(76px, 22vw, 150px); padding: 0 4px; white-space: nowrap; letter-spacing: -1px;
+           text-shadow: 0 6px 30px rgba(0,0,0,.45); }
+  .score .x { color: var(--orange); font-size: .45em; vertical-align: middle; margin: 0 .12em; }
+  .pens { color: var(--muted); font-size: 14px; text-align: center; margin-top: 6px; position: relative; z-index: 1; }
+  .status { display: flex; flex-direction: column; align-items: center; gap: 4px; margin-top: 16px; position: relative; z-index: 1; }
+  .chip { display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px; border-radius: 99px; font-weight: 800; font-size: 13px;
+          letter-spacing: .5px; background: rgba(255,107,107,.14); color: #FFB3B3; }
+  .chip.off { background: rgba(199,218,229,.1); color: var(--muted); }
   .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--live); animation: pulse 1.2s infinite; }
   @keyframes pulse { 50% { opacity: .3; } }
-  .clock { font-family: 'Barlow Condensed', sans-serif; font-style: italic; font-weight: 700; font-size: 26px; color: var(--orange); }
-  h2 { font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin: 22px 4px 10px; }
-  .ev { display: grid; grid-template-columns: 1fr 44px 1fr; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+  .clock { font-family: 'Barlow Condensed', sans-serif; font-style: italic; font-weight: 800; font-size: clamp(34px, 9vw, 56px);
+           color: var(--orange); line-height: 1; }
+  .stoppage { color: var(--live) !important; animation: pulse 1.2s infinite; }
+  .halfend { text-align: center; margin-top: 14px; padding: 10px; border-radius: 12px; background: rgba(246,132,20,.16);
+             color: var(--orange); font-weight: 800; letter-spacing: 1.5px; font-size: 15px; position: relative; z-index: 1; }
+  .many { position: relative; z-index: 1; }
+  .many .row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .many .row:last-child { border-bottom: 0; }
+  .many .crest { width: 52px; height: 52px; margin: 0; border-radius: 16px; font-size: 18px; }
+  .many .score { font-size: 64px; }
+
+  /* Intervalo patrocinado */
+  .sp-break { margin-top: 14px; display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: center; text-decoration: none;
+              color: var(--text); background: linear-gradient(120deg, rgba(246,132,20,.18), rgba(3,136,215,.12)); border-color: rgba(246,132,20,.5); }
+  .sp-break .sp-logo { height: 64px; max-width: 140px; }
+  .sp-break small { color: var(--orange); font-weight: 800; letter-spacing: 1px; font-size: 11px; text-transform: uppercase; }
+  .sp-break .cta { display: inline-block; margin-top: 8px; background: var(--orange); color: var(--bg); font-weight: 800; font-size: 13px;
+                   padding: 7px 12px; border-radius: 10px; }
+
+  h2 { font-size: 12px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); margin: 22px 4px 10px; }
+  .ev { display: grid; grid-template-columns: 1fr 50px 1fr; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 15px; }
   .ev:last-child { border-bottom: 0; }
-  .ev .min { text-align: center; color: var(--muted); font-weight: 700; font-size: 13px; }
+  .ev .min { text-align: center; color: var(--orange); font-weight: 800; font-family: 'Barlow Condensed', sans-serif; font-style: italic; font-size: 20px; }
   .ev .home { text-align: right; } .ev .away { text-align: left; }
-  .who { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; }
+  .who { display: inline-flex; align-items: center; gap: 9px; max-width: 100%; }
   .ev .home .who { flex-direction: row-reverse; }
-  .ava { width: 30px; height: 30px; border-radius: 50%; flex: none; background: var(--line) center/cover no-repeat;
-         display: grid; place-items: center; font-size: 11px; font-weight: 800; color: var(--muted); }
-  .tb { width: 18px; height: 18px; border-radius: 5px; flex: none; display: grid; place-items: center; font-size: 9px;
+  .ava { width: 36px; height: 36px; border-radius: 50%; flex: none; background: var(--line) center/cover no-repeat;
+         display: grid; place-items: center; font-size: 12px; font-weight: 800; color: var(--muted); border: 2px solid var(--surface2); }
+  .tb { width: 20px; height: 20px; border-radius: 6px; flex: none; display: grid; place-items: center; font-size: 9px;
         font-weight: 800; background: center/cover no-repeat; }
-  .pname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .halfend { text-align: center; margin-top: 12px; padding: 8px; border-radius: 10px; background: rgba(246,132,20,.15);
-             color: var(--orange); font-weight: 800; letter-spacing: 1px; font-size: 13px; }
-  .stoppage { color: var(--live); font-weight: 800; animation: pulse 1.2s infinite; }
-  .ic { display: inline-block; width: 10px; height: 14px; border-radius: 2px; vertical-align: -2px; margin: 0 6px; }
+  .pname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+  .ic { display: inline-block; width: 11px; height: 15px; border-radius: 2px; vertical-align: -2px; margin: 0 4px; }
+
+  /* Parceiros */
+  .partners { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+  .partner { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 8px; border-radius: 14px; text-decoration: none;
+             color: var(--text); background: var(--surface); border: 1px solid var(--line); text-align: center; }
+  .partner img { height: 40px; max-width: 110px; object-fit: contain; background: #fff; border-radius: 8px; padding: 3px 6px; }
+  .partner span { font-size: 13px; font-weight: 700; }
+  .partner em { font-style: normal; font-size: 11px; color: var(--muted); }
+  .adhere { border-style: dashed; color: var(--muted); }
+
   .empty, .error { text-align: center; color: var(--muted); padding: 30px 10px; }
   .foot { text-align: center; margin-top: 22px; color: var(--muted); font-size: 12px; }
-  .entry h1 { font-size: 20px; margin: 0 0 6px; }
+  .entry h1 { font-size: 22px; margin: 0 0 6px; }
   .entry p { color: var(--muted); font-size: 14px; margin: 0 0 16px; }
-  .entry input { width: 100%; font: 800 28px 'Barlow Condensed', sans-serif; font-style: italic; letter-spacing: 6px;
-                 text-align: center; text-transform: uppercase; padding: 12px; border-radius: 12px;
+  .entry input { width: 100%; font: 800 32px 'Barlow Condensed', sans-serif; font-style: italic; letter-spacing: 6px;
+                 text-align: center; text-transform: uppercase; padding: 12px; border-radius: 14px;
                  border: 1px solid var(--line); background: var(--bg); color: var(--text); }
   .entry input:focus { outline: 2px solid var(--orange); }
-  .btn { display: block; width: 100%; margin-top: 10px; padding: 13px; border-radius: 12px; border: 0; font: 800 15px 'Plus Jakarta Sans', sans-serif; cursor: pointer; }
+  .btn { display: block; width: 100%; margin-top: 10px; padding: 14px; border-radius: 14px; border: 0; font: 800 15px 'Plus Jakarta Sans', sans-serif; cursor: pointer; }
   .btn.primary { background: var(--orange); color: var(--bg); }
   .btn.ghost { background: transparent; color: var(--text); border: 1px solid var(--line); }
   #reader { margin-top: 12px; border-radius: 12px; overflow: hidden; }
-  .switch { display: inline-block; margin-top: 8px; color: var(--muted); font-size: 13px; }
+  .switch { display: inline-block; margin-top: 10px; color: var(--muted); font-size: 13px; }
   a.app { display: inline-block; margin-top: 10px; background: var(--orange); color: var(--bg); font-weight: 800; text-decoration: none;
           padding: 12px 18px; border-radius: 12px; }
+
+  /* Telao (TV / tela grande): placar a esquerda, lances e parceiros a direita */
+  @media (min-width: 1000px) {
+    main { max-width: 1240px; }
+    .layout { display: grid; grid-template-columns: 1.35fr 1fr; gap: 20px; align-items: start; }
+    .layout h2:first-child { margin-top: 0; }
+    .score { font-size: 170px; }
+  }
+  body.tv header .tag, body.tv .foot { display: none; }
 </style>
 </head>
 <body>
 <main>
-  <header><span class="brand">TIRA-<b>TIME</b></span><span style="color:var(--muted);font-size:13px">placar ao vivo</span></header>
+  <header>
+    <span class="brand">TIRA-<b>TIME</b></span><span class="tag">placar ao vivo</span>
+    <span class="spacer"></span>
+    <button class="icon-btn" id="tv" type="button" title="Tela cheia para TV">⛶ Modo telão</button>
+  </header>
   <div id="app"><div class="card empty">Carregando o placar…</div></div>
   <div class="foot">Atualiza sozinho a cada 10 segundos.<br><a class="app" id="open-app" href="#">Abrir no app Tira-Time</a></div>
 </main>
@@ -79,6 +142,12 @@
   const code = (new URLSearchParams(location.search).get('c') || '').toUpperCase().replace(/[^A-Z2-9]/g, '').slice(0, 8);
   document.getElementById('open-app').href = 'pelada://app/ao-vivo/' + code;
   if (!code) document.querySelector('.foot').style.display = 'none';
+  document.getElementById('tv').onclick = () => {
+    document.body.classList.toggle('tv');
+    const el = document.documentElement;
+    if (!document.fullscreenElement && el.requestFullscreen) el.requestFullscreen().catch(() => {});
+    else if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+  };
 
   // Codigo digitado ou lido no QR (aceita o codigo puro ou o link com ?c=).
   function codeFrom(text) {
@@ -124,7 +193,8 @@
     }
   }
 
-  let data = null, offsetMs = 0;
+  let data = null, offsetMs = 0, sponsors = null;
+  const seen = new Set();
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const safeColor = (c) => /^#[0-9a-fA-F]{6}$/.test(c || '') ? c : '#0561AF';
   const textOn = (hex) => { const n = parseInt(hex.slice(1), 16); const l = (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)); return l > 150 ? '#051F38' : '#F7FCFE'; };
@@ -148,7 +218,6 @@
     if (!data) return none;
     const mmss = (v) => String(Math.floor(v / 60)).padStart(2, '0') + ':' + String(Math.floor(v % 60)).padStart(2, '0');
     const since = (iso) => Math.max(0, (Date.now() + offsetMs - new Date(iso).getTime()) / 1000);
-    // Intervalo: conta desde o fim do tempo
     const intervalInfo = (elapsed) => {
       const left = (data.interval_minutes || 10) * 60 - elapsed;
       return left > 0 ? { text: 'faltam ' + mmss(left), stoppage: false, phase: 'interval' }
@@ -175,7 +244,6 @@
     const len = (data.period_minutes || (data.kind === 'pelada' ? data.game_minutes : 45) || 45) * 60;
     const given = (data.stoppage_minutes || 0) * 60;
     if (!paused && given > 0 && secs >= len + given) {
-      // Acrescimos dados acabaram: o servidor encerra o tempo; o painel ja mostra na hora.
       return lastHalf ? { text: '', stoppage: false, phase: 'ended' } : intervalInfo(secs - len - given);
     }
     if (secs >= len) {
@@ -186,9 +254,8 @@
     return { text: mmss(base * 60 + secs) + (paused ? ' (pausado)' : ''), stoppage: false, phase: null };
   }
   function clockText() { return clockInfo().text; }
-  // Qual tempo acabou (para a faixa do intervalo)
   function halfDone() {
-    if (data.kind === 'pelada') return data.clock_period === 'interval' ? (data.clock_half || 1) : (data.clock_half || 1);
+    if (data.kind === 'pelada') return data.clock_half || 1;
     return data.clock_period === 'extra_halftime' ? 3 : 1;
   }
   function periodLabel() {
@@ -199,14 +266,62 @@
     const name = data.kind === 'pelada' ? peladaLabel() : (PERIODS[data.clock_period] || 'Ao vivo');
     return info.stoppage ? name + ' · ACRÉSCIMOS' : name;
   }
+  const inBreak = () => ['interval', 'interval_over'].includes(clockInfo().phase);
 
   function crest(t) {
     const color = safeColor(t && t.color);
     const url = safeUrl(t && t.crest_url);
     return url
-      ? `<div class="crest" style="background-image:url('${esc(url)}');border:2px solid ${color}"></div>`
+      ? `<div class="crest" style="background-image:url('${esc(url)}');background-color:#fff;border:3px solid ${color}"></div>`
       : `<div class="crest" style="background:${color};color:${textOn(color)}">${esc(t ? t.short_code : '?')}</div>`;
   }
+
+  // ---------- Patrocinadores ----------
+  function track(id, placement, kind) {
+    fetch(SUPABASE_URL + '/rest/v1/rpc/track_sponsor', {
+      method: 'POST', keepalive: true,
+      headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_sponsor_id: id, p_placement: placement, p_kind: kind }),
+    }).catch(() => {});
+  }
+  function viewOnce(s, placement) {
+    const k = s.id + ':' + placement;
+    if (!seen.has(k)) { seen.add(k); track(s.id, placement, 'view'); }
+  }
+  function spLink(s, placement, cls, inner) {
+    const href = safeUrl(s.link_url);
+    viewOnce(s, placement);
+    return href
+      ? `<a class="${cls}" href="${esc(href)}" target="_blank" rel="noopener sponsored" data-sp="${esc(s.id)}" data-pl="${placement}">${inner}</a>`
+      : `<div class="${cls}">${inner}</div>`;
+  }
+  const spLogo = (s) => safeUrl(s.logo_url) ? `<img class="sp-logo" src="${esc(s.logo_url)}" alt="${esc(s.name)}">` : '';
+  function sponsorTop() {
+    const s = sponsors && sponsors.topo && sponsors.topo[0];
+    if (!s) return '';
+    return spLink(s, 'topo', 'sp-top', `<small>Placar oferecido por</small>${spLogo(s)}<span class="sp-name">${esc(s.name)}</span>`);
+  }
+  function sponsorBreak() {
+    const s = sponsors && sponsors.intervalo && sponsors.intervalo[0];
+    if (!s || !inBreak()) return '';
+    return spLink(s, 'intervalo', 'card sp-break',
+      `${spLogo(s) || '<span style="font-size:40px">⚽</span>'}<div><small>Intervalo oferecido por</small>
+       <div class="sp-name" style="font-size:20px">${esc(s.name)}</div>
+       ${s.tagline ? `<div style="color:var(--muted);margin-top:2px">${esc(s.tagline)}</div>` : ''}
+       ${safeUrl(s.link_url) ? '<span class="cta">Ver ofertas</span>' : ''}</div>`);
+  }
+  function sponsorFooter() {
+    const list = (sponsors && sponsors.rodape) || [];
+    const cats = { loja_esporte: 'Loja de esportes', moda: 'Moda', society: 'Society', quadra: 'Quadra', alimentacao: 'Alimentação', saude: 'Saúde' };
+    const items = list.map((s) => spLink(s, 'rodape', 'partner',
+      `${safeUrl(s.logo_url) ? `<img src="${esc(s.logo_url)}" alt="">` : ''}<span>${esc(s.name)}</span><em>${esc(s.tagline || cats[s.category] || '')}</em>`)).join('');
+    const ad = `<div class="partner adhere"><span>Sua marca aqui</span><em>Anuncie no placar ao vivo dos jogos da sua cidade</em></div>`;
+    return `<h2>Parceiros</h2><div class="partners">${items}${list.length < 3 ? ad : ''}</div>`;
+  }
+  document.addEventListener('click', (ev) => {
+    const a = ev.target.closest && ev.target.closest('a[data-sp]');
+    if (a) track(a.dataset.sp, a.dataset.pl, 'click');
+  });
 
   function render() {
     const el = document.getElementById('app');
@@ -214,15 +329,17 @@
     if (!data) { renderEntry('Jogo não encontrado para o código ' + code + '. Confira e tente de novo.'); return; }
     const live = data.status === 'in_progress';
     const ended = data.status === 'finished';
+    const cancelled = data.status === 'cancelled';
     const when = data.scheduled_at ? new Date(data.scheduled_at).toLocaleString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
     const meta = [data.championship, data.round ? 'Rodada ' + data.round : null, when, data.venue].filter(Boolean).map(esc).join(' · ');
     const pens = data.home_pens != null && data.away_pens != null ? `<div class="pens">Pênaltis: ${data.home_pens} x ${data.away_pens}</div>` : '';
-    const cancelled = data.status === 'cancelled';
+    const info = clockInfo();
     const status = live
-      ? `<div class="status"><span class="dot"></span><span id="plabel" class="${clockInfo().stoppage ? 'stoppage' : ''}">${esc(periodLabel())}</span><span class="clock" id="clock">${clockText()}</span></div>`
-      : `<div class="status" style="color:var(--muted)">${cancelled ? 'Partida cancelada' : ended ? 'Fim de jogo' : 'Ainda não começou'}</div>`;
+      ? `<div class="status"><span class="chip"><span class="dot"></span><span id="plabel" class="${info.stoppage ? 'stoppage' : ''}">${esc(periodLabel())}</span></span>
+         <span class="clock ${info.stoppage ? 'stoppage' : ''}" id="clock">${clockText()}</span></div>`
+      : `<div class="status"><span class="chip off">${cancelled ? 'Partida cancelada' : ended ? 'Fim de jogo' : 'Ainda não começou'}</span></div>`;
     const many = Array.isArray(data.teams) && data.teams.length > 2;
-    const icon = (t) => t === 'goal' ? '⚽' : t === 'own_goal' ? '⚽ (contra)' : t === 'yellow'
+    const icon = (t) => t === 'goal' ? '⚽' : t === 'own_goal' ? '⚽ contra' : t === 'yellow'
       ? '<span class="ic" style="background:var(--yellow)"></span>' : '<span class="ic" style="background:var(--live)"></span>';
     const teamName = (n) => (data.teams && data.teams[n - 1]) ? data.teams[n - 1].name : '';
     const initials = (n) => String(n || '?').trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
@@ -237,49 +354,65 @@
         return `<span class="tb" style="background-color:${c};color:${textOn(c)}">${esc(t.short_code || '')}</span>`;
       }
       const u = safeUrl(e.team_crest), c = safeColor(e.team_color);
-      return u ? `<span class="tb" style="background-image:url('${esc(u)}')"></span>`
+      return u ? `<span class="tb" style="background-image:url('${esc(u)}');background-color:#fff"></span>`
                : `<span class="tb" style="background-color:${c};color:${textOn(c)}">${esc((e.team_short || '').slice(0, 3))}</span>`;
     };
     const who = (e) => `<span class="who">${ava(e)}<span class="pname">${icon(e.type)} ${esc(e.player || '')}</span>${teamBadge(e)}</span>`;
     const evs = (data.events || []).map((e) => {
       if (many) {
-        return `<div class="ev" style="grid-template-columns:44px 1fr"><div class="min">${e.minute != null ? esc(e.minute) + "'" : ''}</div><div>${who(e)} <span style="color:var(--muted)">· ${esc(teamName(e.team))}</span></div></div>`;
+        return `<div class="ev" style="grid-template-columns:50px 1fr"><div class="min">${e.minute != null ? esc(e.minute) + "'" : ''}</div><div>${who(e)} <span style="color:var(--muted)">· ${esc(teamName(e.team))}</span></div></div>`;
       }
       const txt = who(e);
       return `<div class="ev"><div class="home">${e.side === 'home' ? txt : ''}</div><div class="min">${e.minute != null ? esc(e.minute) + "'" : ''}</div><div class="away">${e.side === 'away' ? txt : ''}</div></div>`;
     }).join('');
-    el.innerHTML = `
-      <div class="card">
-        <div class="meta">${meta}</div>
-        ${many ? data.teams.map((t) => `
-          <div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--line)">
-            <div class="crest" style="width:40px;height:40px;margin:0;font-size:14px;background:${safeColor(t.color)};color:${textOn(safeColor(t.color))}">${esc(t.short_code)}</div>
+    const scoreboard = many
+      ? `<div class="many">${data.teams.map((t) => `
+          <div class="row">
+            <div class="crest" style="background:${safeColor(t.color)};color:${textOn(safeColor(t.color))}">${esc(t.short_code)}</div>
             <div class="tname" style="flex:1">${esc(t.name)}</div>
-            <div class="score" style="font-size:40px">${esc(t.score)}</div>
-          </div>`).join('') : `
-        <div class="teams">
+            <div class="score">${esc(t.score)}</div>
+          </div>`).join('')}</div>`
+      : `<div class="teams">
           <div class="team">${crest(data.home)}<div class="tname">${esc(data.home ? data.home.name : 'A definir')}</div></div>
-          <div class="score">${esc(data.home_score)} x ${esc(data.away_score)}</div>
+          <div class="score">${esc(data.home_score)}<span class="x">x</span>${esc(data.away_score)}</div>
           <div class="team">${crest(data.away)}<div class="tname">${esc(data.away ? data.away.name : 'A definir')}</div></div>
-        </div>`}
-        ${pens}${status}
-        <div id="halfend" class="halfend" style="display:${['interval', 'interval_over'].includes(clockInfo().phase) && live ? 'block' : 'none'}">FIM DO ${esc(halfDone())}º TEMPO</div>
-      </div>
-      <div style="text-align:center"><a class="switch" href="./">Acompanhar outro jogo</a></div>
-      <h2>Gols e cartões</h2>
-      <div class="card">${evs || '<div class="empty" style="padding:8px">Nenhum gol ou cartão ainda.</div>'}</div>`;
+        </div>`;
+    el.innerHTML = `
+      ${sponsorTop()}
+      <div class="layout">
+        <div>
+          <div class="card board">
+            <div class="meta">${meta}</div>
+            ${scoreboard}
+            ${pens}${status}
+            <div id="halfend" class="halfend" style="display:${inBreak() && live ? 'block' : 'none'}">FIM DO ${esc(halfDone())}º TEMPO</div>
+          </div>
+          <div id="spbreak">${live ? sponsorBreak() : ''}</div>
+          <div style="text-align:center"><a class="switch" href="./">Acompanhar outro jogo</a></div>
+        </div>
+        <div>
+          <h2>Gols e cartões</h2>
+          <div class="card">${evs || '<div class="empty" style="padding:8px">Nenhum gol ou cartão ainda.</div>'}</div>
+          ${sponsorFooter()}
+        </div>
+      </div>`;
   }
 
+  async function rpc(fn, body) {
+    const r = await fetch(SUPABASE_URL + '/rest/v1/rpc/' + fn, {
+      method: 'POST', headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    });
+    if (!r.ok) throw new Error(r.status);
+    return r.json();
+  }
+  async function loadSponsors() {
+    if (!code) return;
+    try { sponsors = await rpc('live_sponsors', { p_code: code }); } catch (e) {}
+  }
   async function load() {
     if (!code) return render();
     try {
-      const r = await fetch(SUPABASE_URL + '/rest/v1/rpc/live_match', {
-        method: 'POST',
-        headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ p_code: code }),
-      });
-      if (!r.ok) throw new Error(r.status);
-      data = await r.json();
+      data = await rpc('live_match', { p_code: code });
       if (data && data.server_now) offsetMs = new Date(data.server_now).getTime() - Date.now();
       render();
     } catch (e) {
@@ -287,14 +420,20 @@
     }
   }
 
-  load();
+  loadSponsors().then(load);
   setInterval(() => { if (code) load(); }, 10000);
+  setInterval(loadSponsors, 120000);
+  let wasBreak = null;
   setInterval(() => {
-    const c = document.getElementById('clock'); if (c) c.textContent = clockText();
+    const c = document.getElementById('clock');
+    if (c) { c.textContent = clockText(); c.className = 'clock' + (clockInfo().stoppage ? ' stoppage' : ''); }
     const l = document.getElementById('plabel');
     if (l && data) { l.textContent = periodLabel(); l.className = clockInfo().stoppage ? 'stoppage' : ''; }
     const h = document.getElementById('halfend');
-    if (h && data) h.style.display = ['interval', 'interval_over'].includes(clockInfo().phase) ? 'block' : 'none';
+    if (h && data) h.style.display = inBreak() ? 'block' : 'none';
+    // Entrou ou saiu do intervalo: mostra/esconde o intervalo patrocinado na hora.
+    const b = data && inBreak();
+    if (b !== wasBreak) { wasBreak = b; const sb = document.getElementById('spbreak'); if (sb) sb.innerHTML = b ? sponsorBreak() : ''; }
   }, 1000);
 </script>
 </body>
