@@ -104,6 +104,17 @@
   .mvp { margin-top: 14px; display: flex; align-items: center; gap: 12px; }
   .mvp .ava { width: 54px; height: 54px; font-size: 16px; border-color: var(--orange); }
   .mvp small { color: var(--orange); font-weight: 800; letter-spacing: 1px; font-size: 11px; text-transform: uppercase; }
+  .arenabar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding: 8px 12px; border-radius: 14px;
+              background: rgba(3,136,215,.12); border: 1px solid var(--line); }
+  .arenabar img { height: 34px; width: 34px; object-fit: contain; background: #fff; border-radius: 8px; }
+  .arenabar b { font-size: 15px; } .arenabar span { color: var(--muted); font-size: 13px; }
+  .idle-hero { text-align: center; padding: 28px 16px; }
+  .idle-hero img.logo { height: 90px; width: 90px; object-fit: contain; background: #fff; border-radius: 22px; padding: 6px; }
+  .idle-hero h1 { font-family: 'Barlow Condensed', sans-serif; font-style: italic; font-weight: 800; font-size: clamp(36px, 8vw, 64px); margin: 12px 0 4px; }
+  .row-game { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .row-game:last-child { border-bottom: 0; }
+  .row-game .t { color: var(--orange); font-weight: 800; font-family: 'Barlow Condensed', sans-serif; font-style: italic; font-size: 22px; min-width: 64px; }
+  .slot { display: inline-block; margin: 4px; padding: 8px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); font-weight: 700; }
   .empty, .error { text-align: center; color: var(--muted); padding: 30px 10px; }
   .foot { text-align: center; margin-top: 22px; color: var(--muted); font-size: 12px; }
   .entry h1 { font-size: 22px; margin: 0 0 6px; }
@@ -145,9 +156,15 @@
   // Preenchido por tool/build_placar.py (URL do projeto e chave publica "publishable").
   const SUPABASE_URL = 'https://elhdfbqaqnwvadctigyh.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_aIF6CfzjU2FVQ_ySFzQ_Lw_rIQKv5PV';
-  const code = (new URLSearchParams(location.search).get('c') || '').toUpperCase().replace(/[^A-Z2-9]/g, '').slice(0, 8);
+  const params = new URLSearchParams(location.search);
+  let code = (params.get('c') || '').toUpperCase().replace(/[^A-Z2-9]/g, '').slice(0, 8);
+  // Telao da quadra: ?arena=slug&campo=N (mostra sozinho o jogo daquele campo, ou o que o dono fixar)
+  const arenaSlug = (params.get('arena') || '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 60);
+  const arenaCourt = Math.max(1, Math.min(20, parseInt(params.get('campo') || '1', 10) || 1));
+  let arenaData = null;
   document.getElementById('open-app').href = 'pelada://app/ao-vivo/' + code;
-  if (!code) document.querySelector('.foot').style.display = 'none';
+  if (!code && !arenaSlug) document.querySelector('.foot').style.display = 'none';
+  if (arenaSlug) document.body.classList.add('tv');
   document.getElementById('tv').onclick = () => {
     document.body.classList.toggle('tv');
     const el = document.documentElement;
@@ -361,8 +378,43 @@
     if (a) track(a.dataset.sp, a.dataset.pl, 'click');
   });
 
+  function arenaBar() {
+    if (!arenaData) return '';
+    const a = arenaData.arena;
+    return `<div class="arenabar">${safeUrl(a.logo_url) ? `<img src="${esc(a.logo_url)}" alt="">` : '🏟️'}
+      <div><b>${esc(a.name)}</b> <span>· Campo ${esc(arenaData.court)}${arenaData.mode === 'pinned' ? ' · jogo fixado' : ''}</span></div></div>`;
+  }
+  function renderIdle() {
+    const el = document.getElementById('app');
+    if (!arenaData) { el.innerHTML = '<div class="card error">Quadra não encontrada. Confira o link do telão.</div>'; return; }
+    const a = arenaData.arena;
+    const today = (arenaData.today || []).filter((g) => !g.court || g.court === arenaData.court || a.courts <= 1);
+    const hhmm = (iso) => new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const day = (iso) => new Date(iso).toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' });
+    const games = today.map((g) => `<div class="row-game"><span class="t">${hhmm(g.starts_at)}</span>
+      <div style="flex:1"><b>${esc(g.home)} x ${esc(g.away)}</b><div style="color:var(--muted);font-size:13px">${esc(g.title)}${a.courts > 1 ? ' · campo ' + esc(g.court) : ''}</div></div>
+      ${g.status === 'finished' ? `<b>${esc(g.home_score)} x ${esc(g.away_score)}</b>` : ''}</div>`).join('');
+    const slots = (arenaData.free_slots || []).map((s) => `<span class="slot">${day(s.starts_at)} ${hhmm(s.starts_at)}${s.price_cents ? ' · R$ ' + (s.price_cents / 100).toFixed(0) : ''}</span>`).join('');
+    const sps = (arenaData.sponsors || []).slice(0, 8);
+    el.innerHTML = `
+      <div class="card idle-hero" style="${safeUrl(a.photo_url) ? `background:linear-gradient(rgba(5,31,56,.75),rgba(5,31,56,.9)),url('${esc(a.photo_url)}') center/cover;` : ''}">
+        ${safeUrl(a.logo_url) ? `<img class="logo" src="${esc(a.logo_url)}" alt="">` : ''}
+        <h1>${esc(a.name)}</h1>
+        <div style="color:var(--muted)">${esc([a.address, a.city].filter(Boolean).join(' · '))}${a.courts > 1 ? ' · Campo ' + esc(arenaData.court) : ''}</div>
+        <div class="chip off" style="margin-top:14px">Nenhum jogo agora neste campo</div>
+      </div>
+      <div class="layout">
+        <div><h2>Hoje na quadra</h2><div class="card">${games || '<div class="empty" style="padding:8px">Nenhum jogo marcado para hoje.</div>'}</div></div>
+        <div><h2>Horários livres · reserve pelo app Tira-Time</h2><div class="card">${slots || '<div class="empty" style="padding:8px">Consulte a quadra.</div>'}</div>
+          ${sps.length ? `<h2>Parceiros</h2><div class="partners">${sps.map((s) => spLink(s, 'rodape', 'partner',
+            `${safeUrl(s.logo_url) ? `<img src="${esc(s.logo_url)}" alt="">` : ''}<span>${esc(s.name)}</span><em>${esc(s.tagline || '')}</em>`)).join('')}</div>` : ''}
+        </div>
+      </div>`;
+  }
+
   function render() {
     const el = document.getElementById('app');
+    if (!code && arenaSlug) { renderIdle(); return; }
     if (!code) { renderEntry(); return; }
     if (!data) { renderEntry('Jogo não encontrado para o código ' + code + '. Confira e tente de novo.'); return; }
     const live = data.status === 'in_progress';
@@ -416,6 +468,7 @@
           <div class="team">${crest(data.away)}<div class="tname">${esc(data.away ? data.away.name : 'A definir')}</div></div>
         </div>`;
     el.innerHTML = `
+      ${arenaBar()}
       ${sponsorTop()}
       <div class="layout">
         <div>
@@ -459,8 +512,27 @@
     }
   }
 
-  loadSponsors().then(load);
-  setInterval(() => { if (code) load(); }, 10000);
+  async function loadArena() {
+    try {
+      arenaData = await rpc('arena_screen', { p_slug: arenaSlug, p_court: arenaCourt });
+    } catch (e) { return; }
+    const next = (arenaData && arenaData.code) || '';
+    if (next !== code) {
+      // Trocou o jogo do campo (comecou outro, ou o dono fixou): carrega o novo placar.
+      code = next; data = null; sponsors = null; seen.clear();
+      document.getElementById('open-app').href = 'pelada://app/ao-vivo/' + code;
+      if (code) { await loadSponsors(); }
+    }
+    if (code) await load(); else render();
+  }
+
+  if (arenaSlug) {
+    loadArena();
+    setInterval(loadArena, 10000);
+  } else {
+    loadSponsors().then(load);
+    setInterval(() => { if (code) load(); }, 10000);
+  }
   setInterval(loadSponsors, 120000);
   setInterval(() => {
     const list = (sponsors && sponsors.topo) || [];
